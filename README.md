@@ -1,225 +1,433 @@
-Financial Fraud Detection System
-=================================
+# Money Muling Detection System - RIFT 2026 Hackathon
 
-A production-ready FastAPI-based fraud detection platform with
-6 detection algorithms, unified scoring, and compliance reporting
-for financial institutions.
+**Graph-based financial crime detection engine for identifying money muling networks**
 
-------------------------------------------------------------
-ENTERPRISE FRAUD DETECTION
-------------------------------------------------------------
+Built for the RIFT 2026 Hackathon - Graph Theory / Financial Crime Detection Track
 
-Multi-Algorithm Approach:
-- Cycle Detection (A→B→C→A circular flows)
-- Fan-in / Fan-out Detection
-- Shell Chain Detection
-- Velocity Analysis
-- Unified Risk Scoring (0–100)
-- Compliance Reporting (Fraud rings, risk tiers, JSON export)
+---
 
-------------------------------------------------------------
-KEY FEATURES
-------------------------------------------------------------
+## 📋 Table of Contents
 
-Enterprise-Grade Architecture:
-- 100% type hints and docstrings
-- Structured logging
-- Clean service-layer separation
-- Validation and error handling
+- [Quick Start](#quick-start)
+- [Tech Stack](#tech-stack)
+- [System Architecture](#system-architecture)
+- [Detection Algorithms](#detection-algorithms)
+- [API Documentation](#api-documentation)
+- [Installation & Deployment](#installation--deployment)
+- [Performance Metrics](#performance-metrics)
+- [Known Limitations](#known-limitations)
+- [Team Members](#team-members)
 
-Deterministic & Reproducible:
-- Same input → identical output
-- ISO 8601 UTC timestamps
-- Sorted deterministic results
-- Regulatory audit compliant
+---
 
-High Performance:
-- O(V + E + N log N) complexity
-- Handles 100K+ transactions
-- Fraud ring detection via SCC clustering
-- Fully JSON serializable output
+## 🚀 Quick Start
 
-Regulatory Compliance:
-- Pattern attribution
-- Risk-tier classification
-- Audit trail support
-- AML/CFT compliant
+### Local Development
 
-------------------------------------------------------------
-PROJECT STRUCTURE
-------------------------------------------------------------
+```bash
+# Clone repository
+git clone [your-repo-url]
+cd fraud-detection-system
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run application
+python run.py
+```
+
+Application available at: **http://localhost:10000**
+
+### Docker Deployment
+
+```bash
+# Build and run with Docker Compose
+docker-compose up -d
+
+# View logs
+docker-compose logs -f fraud-detection
+```
+
+---
+
+## 🏗️ Tech Stack
+
+| Component | Technology |
+|-----------|-----------|
+| Web Framework | FastAPI |
+| Graph Analysis | NetworkX |
+| Data Processing | Pandas, NumPy |
+| Data Validation | Pydantic |
+| Database (Reports) | SQLite |
+| Server | Uvicorn (ASGI) |
+| Deployment | Docker, Render |
+
+---
+
+## 📐 System Architecture
+
 ```
 fraud-detection-system/
-│
 ├── app/
-│   ├── main.py
-│   ├── config.py
-│   ├── middleware/error_handler.py
+│   ├── main.py                      # FastAPI application
+│   ├── config.py                    # Configuration settings
 │   ├── routers/
-│   │   ├── transactions.py
-│   │   ├── fraud_detection.py
-│   │   └── health.py
-│   ├── models/transaction_models.py
+│   │   ├── fraud_detection.py      # API endpoints (RIFT compliance)
+│   │   ├── health.py               # Health check
+│   │   └── transactions.py         # Transaction endpoints
 │   ├── services/
-│   │   ├── transaction_csv_parser.py
-│   │   ├── transaction_store.py
-│   │   ├── transaction_graph_builder.py
-│   │   ├── cycle_detection.py
-│   │   ├── fan_pattern_detection.py
-│   │   ├── shell_chain_detection.py
-│   │   ├── suspicion_scoring.py
-│   │   ├── compliance_reporting.py
-│   └── utils/
-│       ├── exceptions.py
-│       ├── logger.py
-│       └── validators.py
-│
-├── .env.example
-├── requirements.txt
-├── docker-compose.yml
-├── Dockerfile
-├── sample_transactions.csv
+│   │   ├── csv_processor.py        # CSV parsing (YYYY-MM-DD HH:MM:SS)
+│   │   ├── graph_detection.py      # Graph construction (O(E))
+│   │   ├── cycle_detection.py      # Cycle detection (3-5 length)
+│   │   ├── fan_pattern_detection.py # Smurfing patterns (10+ threshold)
+│   │   ├── shell_chain_detection.py # Shell networks (3+ hops)
+│   │   ├── suspicion_scoring.py    # Unified scoring (0-100)
+│   │   ├── compliance_reporting.py # Standard report generation
+│   │   ├── rift_report_generator.py # RIFT-compliant JSON output
+│   │   └── report_storage.py       # SQLite persistence
+│   ├── models/
+│   │   └── schemas.py              # Pydantic models
+│   ├── middleware/
+│   │   └── error_handler.py        # Error handling
+│   ├── utils/
+│   │   ├── logger.py               # Logging
+│   │   ├── exceptions.py           # Custom exceptions
+│   │   └── validators.py           # Input validation
+│   └── __init__.py
+├── logs/                            # Application logs
+├── uploads/                         # Uploaded CSV files
+├── .env.example                     # Environment template
+├── .gitignore                       # Git rules
+├── requirements.txt                 # Dependencies
+├── Dockerfile                       # Docker image
+├── docker-compose.yml               # Docker Compose
+├── run.py                           # Development runner
 └── README.md
 ```
-------------------------------------------------------------
-INSTALLATION
-------------------------------------------------------------
 
-1. Create virtual environment:
-    python -m venv venv
-    source venv/bin/activate
+---
 
-2. Install dependencies:
-    pip install -r requirements.txt
+## 🔍 Detection Algorithms
 
-3. Configure environment:
-    cp .env.example .env
+### 1. Circular Fund Routing (Cycles)
 
-4. Run development server:
-    python -m uvicorn app.main:app --reload
+**Pattern**: Money flows in loops through accounts → obscures origin
 
-------------------------------------------------------------
-API ENDPOINTS
-------------------------------------------------------------
+**Example**: A → B → C → A
+
+**Implementation**:
+- Detects cycles of length **3, 4, or 5 nodes**
+- Algorithm: DFS-based cycle detection
+- **Time Complexity**: O(V + E)
+- **Space Complexity**: O(V + E)
+- Output Pattern: `cycle_length_3`, `cycle_length_4`, `cycle_length_5`
+- Key: All accounts in detected cycle → same fraud ring
+
+---
+
+### 2. Smurfing Patterns (Fan-in / Fan-out)
+
+**Pattern**: Breaks large transactions into small deposits to avoid thresholds
+
+**Implementation**:
+- **Fan-in**: 10+ accounts send to 1 receiver
+- **Fan-out**: 1 sender sends to 10+ receivers
+- **Temporal Window**: 72-hour window for related transactions
+- Algorithm: Sliding window aggregation
+- **Time Complexity**: O(N log N) sorting + O(N) window scan
+- Output Patterns: `fan_in_pattern`, `fan_out_pattern`
+
+---
+
+### 3. Layered Shell Networks
+
+**Pattern**: Money passes through low-activity intermediate accounts
+
+**Implementation**:
+- Detects chains of **3+ hops** (source → intermediaries → destination)
+- Intermediate nodes have **2-3 total transactions**
+- Algorithm: BFS with aggressive pruning
+- **Time Complexity**: O(V + E) per search
+- Output Pattern: `shell_chain_pattern`
+
+---
+
+### 4. Velocity Analysis
+
+**Pattern**: Unusually high transaction frequency
+
+**Implementation**:
+- Threshold: **≥10 transactions** per account
+- Identifies accounts with rapid transaction cycling
+- Output Pattern: `high_velocity`
+
+---
+
+## 📊 Suspicion Score Methodology
+
+### Score Calculation (Normalized 0-100)
+
+| Pattern Type | Weight | Condition |
+|-------------|--------|-----------|
+| Cycle Participation | +40 | Account in 3-5 node cycle |
+| Fan-in Pattern | +30 | Receives from ≥10 accounts (72h window) |
+| Fan-out Pattern | +30 | Sends to ≥10 accounts (72h window) |
+| Shell Chain | +20 | Part of 3+ hop chain w/ low-activity intermediates |
+| High Velocity | +10 | ≥10 transactions in dataset |
+
+**Raw Score**: Sum of triggered weights (max 130)
+**Normalized Score**: min(100, (raw / 130) × 100)
+
+---
+
+## 📤 Output Format (RIFT Specification)
+
+### Exact JSON Structure Required
+
+```json
+{
+  "suspicious_accounts": [
+    {
+      "account_id": "ACC_00123",
+      "suspicion_score": 87.5,
+      "detected_patterns": ["cycle_length_3", "high_velocity"],
+      "ring_id": "RING_001"
+    }
+  ],
+  "fraud_rings": [
+    {
+      "ring_id": "RING_001",
+      "member_accounts": ["ACC_00123", "ACC_00456"],
+      "pattern_type": "cycle",
+      "risk_score": 95.3
+    }
+  ],
+  "summary": {
+    "total_accounts_analyzed": 500,
+    "suspicious_accounts_flagged": 15,
+    "fraud_rings_detected": 4,
+    "processing_time_seconds": 2.3
+  }
+}
 ```
-Transaction Management:
-POST   /api/transactions/upload-transactions
-GET    /api/transactions/batch/{batch_id}
-GET    /api/transactions/batches
-DELETE /api/transactions/batch/{batch_id}
-POST   /api/transactions/clear-all
 
-Health:
-GET    /health
+---
 
-Documentation:
-GET    /docs
-GET    /redoc
-```
-------------------------------------------------------------
-CSV FORMAT
-------------------------------------------------------------
+## 🔌 API Documentation
 
-Required Columns:
-- transaction_id
-- sender_id
-- receiver_id
-- amount
-- timestamp
+### 1. Upload Transact CSV
 
-Example:
+**Endpoint**: `POST /api/fraud/upload`
+
+**CSV Format** (RIFT Specification):
 ```
 transaction_id,sender_id,receiver_id,amount,timestamp
-TXN001,ACC001,ACC002,1000.00,2025-02-19T10:00:00
-TXN002,ACC002,ACC003,2500.50,2025-02-19T10:15:00
-TXN003,ACC003,ACC001,1200.00,2025-02-19T10:30:00
+TXN001,Alice,Bob,1000.00,2026-02-19 10:00:00
+TXN002,Bob,Charlie,1500.00,2026-02-19 10:15:00
 ```
-Supported Timestamp Formats:
-- ISO 8601
-- ISO Compact (Z)
-- DateTime
-- Date Only
 
-------------------------------------------------------------
-FRAUD DETECTION ALGORITHMS
-------------------------------------------------------------
+**Request**:
+```bash
+curl -X POST -F "file=@transactions.csv" http://localhost:10000/api/fraud/upload
+```
 
-1. Cycle Detection
-   - Detects circular money flows
-   - Complexity: O(C*L)
+**Response**:
+```json
+{
+  "filename": "transactions.csv",
+  "total_records": 30,
+  "processed_records": 30,
+  "failed_records": 0,
+  "upload_timestamp": "2026-02-19T10:30:00",
+  "status": "success"
+}
+```
 
-2. Fan-in / Fan-out Detection
-   - Detects aggregation and distribution hubs
-   - Complexity: O(N log N)
+---
 
-3. Shell Chain Detection
-   - Detects obfuscation via low-degree nodes
-   - Complexity: O(V + E)
+### 2. Analyze Uploaded CSV
 
-4. Velocity Analysis
-   - Detects rapid transaction bursts
-   - Complexity: O(N log N)
+**Endpoint**: `POST /api/fraud/analyze?filename=transactions.csv`
 
-5. Unified Scoring
-   - Score = min(100, (raw_score / 130) * 100)
+**Response**:
+```json
+{
+  "status": "success",
+  "report_id": "REPORT_001",
+  "suspicious_accounts_flagged": 15,
+  "fraud_rings_detected": 4,
+  "download_json_url": "/api/fraud/report/REPORT_001/download-json"
+}
+```
 
-------------------------------------------------------------
-CONFIGURATION VARIABLES
-------------------------------------------------------------
+**Processing Time**: < 30 seconds (for up to 10K transactions)
 
-APP_NAME=Financial Fraud Detection System
-VERSION=1.0.0
-HOST=0.0.0.0
-PORT=8000
-DEBUG=False
+---
 
-SUSPICIOUS_ACCOUNT_THRESHOLD=30
-HIGH_RISK_THRESHOLD=80
-MEDIUM_RISK_THRESHOLD=50
+### 3. Get Report (Standard Format)
 
-FAN_THRESHOLD=10
-FAN_WINDOW_HOURS=72
+**Endpoint**: `GET /api/fraud/report/{report_id}`
 
-VELOCITY_THRESHOLD=10
-VELOCITY_WINDOW_HOURS=24
+Returns comprehensive report with all metadata.
 
-MIN_CYCLE_LENGTH=3
-MAX_CYCLE_LENGTH=5
+---
 
-SHELL_THRESHOLD=3
-MIN_RING_SIZE=2
-RING_SCORE_THRESHOLD=30
+### 4. Download RIFT JSON
 
-------------------------------------------------------------
-PRODUCTION RECOMMENDATIONS
-------------------------------------------------------------
+**Endpoint**: `GET /api/fraud/report/{report_id}/download-json`
 
-- Replace in-memory store with PostgreSQL or MongoDB
-- Add JWT/OAuth2 authentication
-- Add rate limiting
-- Use Redis caching
-- Add CI/CD pipeline
-- Add containerization
-- Add monitoring tools
+Downloads report in exact RIFT-compliant JSON format.
 
-------------------------------------------------------------
-SECURITY NOTES
-------------------------------------------------------------
+```bash
+curl -O http://localhost:10000/api/fraud/report/REPORT_001/download-json
+```
 
-- Restrict CORS in production
-- Add authentication
-- Add file size limits
-- Use secrets management
+---
 
-------------------------------------------------------------
-AUTHOR
-------------------------------------------------------------
-Aman Verma - Aspiring AI Enginner
+### 5. Health Check
 
-------------------------------------------------------------
-LICENSE
-------------------------------------------------------------
+**Endpoint**: `GET /api/health`
 
-Proprietary – All rights reserved.
+```json
+{
+  "status": "healthy",
+  "version": "1.0.0",
+  "app_name": "Fraud Detection System"
+}
+```
 
-Give a star if you liked it
+---
+
+## 📦 Installation & Deployment
+
+### Local Development
+
+```bash
+# Virtual environment
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Copy environment template
+cp .env.example .env
+
+# Run application
+python run.py
+```
+
+Visit: http://localhost:10000
+
+### Docker
+
+```bash
+# Build image
+docker build -t fraud-detection-system .
+
+# Run container
+docker-compose up -d
+
+# View logs
+docker-compose logs -f fraud-detection
+
+# Stop container
+docker-compose down
+```
+
+### Deploy to Render
+
+1. **Push to GitHub**
+   ```bash
+   git push origin main
+   ```
+
+2. **Create Web Service on Render**
+   - Connect GitHub repository
+   - Set build command: `pip install -r requirements.txt`
+   - Set start command: `uvicorn app.main:app --host 0.0.0.0 --port 10000`
+   - Environment: Set PORT=10000
+
+3. **Access** via provided Render URL
+
+---
+
+## 📈 Performance Metrics
+
+| Metric | Target | Implementation |
+|--------|--------|-----------------|
+| Processing Time (10K txn) | ≤ 30 seconds | Streaming + efficient algorithms |
+| Precision | ≥ 70% | Weighted pattern detection |
+| Recall | ≥ 60% | Multiple algorithm coverage |
+| False Positive Control | Minimize | Heuristic thresholds + clustering |
+
+---
+
+## ⚠️ Known Limitations
+
+### 1. False Positive Sensitivity
+- **Issue**: High-volume merchants may be flagged due to transaction volume
+- **Mitigation**: Implement merchant whitelist in production
+- **Future**: ML-based legitimate account classifier
+
+### 2. Fixed Temporal Windows
+- **Issue**: 72-hour window for smurfing is rigid
+- **Assumption**: Criminal networks move funds quickly
+- **Limitation**: Sophisticated laundering may exceed 72 hours
+- **Future**: Adaptive windows based on account profiles
+
+### 3. Shell Node Heuristics
+- **Issue**: 2-3 transaction threshold for shell nodes is heuristic
+- **Limitation**: May miss sophisticated networks using active intermediaries
+- **Future**: Behavioral anomaly detection
+
+### 4. Cycle Length Bounds
+- **Current**: Only 3-5 node cycles
+- **Limitation**: Longer cycles not detected
+- **Rationale**: Precision vs recall trade-off
+- **Future**: Configurable based on data characteristics
+
+### 5. Memory-Based Processing
+- **Current**: All analysis in RAM
+- **Limitation**: Large datasets may exceed memory
+- **Future**: Stream processing for scalability
+
+### 6. Static Thresholds
+- **Current**: Fan-in/out: 10, Velocity: 10 transactions
+- **Limitation**: One-size-fits-all approach
+- **Future**: Adaptive thresholds per baseline
+
+---
+
+## 👥 Team Members
+
+- [Your Name] - Project Lead & Development
+- [Additional members if any]
+
+---
+
+## 📝 License
+
+[Your License Information]
+
+---
+
+## 📧 Contact
+
+For questions or support: [your-email]
+
+---
+
+## 🏆 Acknowledgments
+
+Built for **RIFT 2026 Hackathon** - Graph Theory / Financial Crime Detection Track
+
+---
+
+**Version**: 1.0.0
+**Last Updated**: February 19, 2026
+**Deployment Status**: Ready for Render
