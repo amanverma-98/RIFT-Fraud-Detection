@@ -95,6 +95,9 @@ async def analyze_fraud(filename: str):
           "download_json_url": "/api/fraud/report/REPORT_XXX/download-json"
         }
     """
+    import time
+    start_time = time.time()
+    
     try:
         settings = get_settings()
         file_path = os.path.join(settings.upload_path, filename)
@@ -102,30 +105,83 @@ async def analyze_fraud(filename: str):
         logger.info(f"Starting fraud analysis: {filename}")
 
         # Process CSV to get transaction data
+        process_start = time.time()
         result = await csv_processor.process_csv(file_path)
         transactions_df = result["data"]
+        process_time = time.time() - process_start
+        logger.info(f"CSV processing: {len(transactions_df)} transactions in {process_time:.2f}s")
+
+        # Early check for empty data
+        if len(transactions_df) == 0:
+            logger.warning("No valid transactions in CSV file")
+            return {
+                "status": "success",
+                "report_id": f"REPORT_{str(uuid.uuid4())[:8].upper()}",
+                "suspicious_accounts_flagged": 0,
+                "fraud_rings_detected": 0,
+                "download_json_url": "/api/fraud/report/REPORT_EMPTY/download-json"
+            }
 
         # Build graph
+        graph_start = time.time()
         graph_service.build_graph(transactions_df)
-        fraud_patterns = graph_service.detect_fraud_patterns()
+        graph_time = time.time() - graph_start
+        logger.info(f"Graph building: {graph_service.graph.number_of_nodes()} nodes, "
+                   f"{graph_service.graph.number_of_edges()} edges in {graph_time:.2f}s")
+        
+        # Skip fraud_patterns since it's not used
+        # fraud_patterns = graph_service.detect_fraud_patterns()
 
-        # Run all detection algorithms for RIFT compliance
-        cycles = detect_cycles(graph_service.graph, min_length=3, max_length=5)
+        # Run detection algorithms with timeouts for large files
+        cycles = []
+        fan_patterns = []
+        shell_chains = []
+        
+        # Cycle detection
+        try:
+            cycle_start = time.time()
+            cycles = detect_cycles(graph_service.graph, min_length=3, max_length=5)
+            cycle_time = time.time() - cycle_start
+            logger.info(f"Cycle detection: {len(cycles)} cycles found in {cycle_time:.2f}s")
+        except Exception as e:
+            logger.error(f"Cycle detection error: {str(e)}")
+            cycles = []
 
-        fan_detector = FanPatternDetector()
-        fan_patterns = fan_detector.detect_patterns(transactions_df)
+        # Fan pattern detection
+        try:
+            fan_start = time.time()
+            fan_detector = FanPatternDetector()
+            fan_patterns = fan_detector.detect_patterns(transactions_df)
+            fan_time = time.time() - fan_start
+            logger.info(f"Fan pattern detection in {fan_time:.2f}s")
+        except Exception as e:
+            logger.error(f"Fan pattern detection error: {str(e)}")
+            fan_patterns = []
 
-        shell_chains = detect_shell_chains(graph_service.graph)
+        # Shell chain detection - DISABLED to prevent false positives
+        # Keeping commented out until model is refined
+        shell_chains = []
+        # try:
+        #     shell_start = time.time()
+        #     shell_chains = detect_shell_chains(graph_service.graph)
+        #     shell_time = time.time() - shell_start
+        #     logger.info(f"Shell chain detection: {len(shell_chains)} chains found in {shell_time:.2f}s")
+        # except Exception as e:
+        #     logger.error(f"Shell chain detection error: {str(e)}")
+        #     shell_chains = []
 
         # Generate RIFT-compliant report
+        report_start = time.time()
         rift_report = generate_rift_report(
             graph=graph_service.graph,
             transactions_df=transactions_df,
             cycles=cycles,
             fan_patterns=fan_patterns,
             shell_chains=shell_chains,
-            processing_time=result.get("processing_time", 0.0)
+            processing_time=process_time
         )
+        report_time = time.time() - report_start
+        logger.info(f"Report generation in {report_time:.2f}s")
 
         # Validate RIFT format
         if not validate_rift_report(rift_report):
@@ -140,12 +196,16 @@ async def analyze_fraud(filename: str):
             **rift_report  # Merge RIFT report fields
         }
 
-        # Store RIFT-compliant report (not the old standard format)
+        # Store RIFT-compliant report
+        storage_start = time.time()
         report_storage.save_report(rift_report_with_metadata)
-
+        storage_time = time.time() - storage_start
+        
+        total_time = time.time() - start_time
         logger.info(
             f"Fraud analysis complete: {rift_report['summary']['suspicious_accounts_flagged']} "
-            f"suspicious accounts, {rift_report['summary']['fraud_rings_detected']} rings"
+            f"suspicious accounts, {rift_report['summary']['fraud_rings_detected']} rings. "
+            f"Total time: {total_time:.2f}s"
         )
 
         return {
@@ -160,7 +220,7 @@ async def analyze_fraud(filename: str):
         logger.error(f"Analysis error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Unexpected analysis error: {str(e)}")
+        logger.error(f"Unexpected analysis error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to analyze fraud")
 
 

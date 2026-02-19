@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:10000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:10000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -45,7 +45,7 @@ export default {
       link.setAttribute('download', `fraud_report_${reportId}.json`);
       document.body.appendChild(link);
       link.click();
-      link.parentChild.removeChild(link);
+      link.parentNode.removeChild(link);
     });
   },
 

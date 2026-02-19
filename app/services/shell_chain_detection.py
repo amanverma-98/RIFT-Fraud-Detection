@@ -289,8 +289,11 @@ def _is_valid_shell_chain(
     """
     Validate that intermediate nodes are likely shell companies.
 
-    Only check intermediate nodes (skip first and last node).
-    A shell company has <= shell_threshold total transactions.
+    Shell company criteria (per RIFT specification):
+    1. Intermediate node only (not source or destination)
+    2. Has both incoming AND outgoing transactions (acts as bridge)
+    3. Total degree (in + out) <= shell_threshold
+    4. Is NOT a major hub (in_degree >= 1 AND out_degree >= 1)
 
     Time Complexity: O(L) where L = path length
     Space Complexity: O(1)
@@ -301,7 +304,7 @@ def _is_valid_shell_chain(
         shell_threshold: Maximum degree for shell node
 
     Returns:
-        True if all intermediate nodes are shells, False otherwise
+        True if all intermediate nodes are valid shells, False otherwise
     """
     if len(path) < 3:
         return False
