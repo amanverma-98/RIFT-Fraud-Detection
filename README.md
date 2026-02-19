@@ -1,4 +1,3 @@
-"""
 Financial Fraud Detection System
 =================================
 
@@ -49,7 +48,7 @@ Regulatory Compliance:
 ------------------------------------------------------------
 PROJECT STRUCTURE
 ------------------------------------------------------------
-
+```
 fraud-detection-system/
 │
 ├── app/
@@ -81,7 +80,7 @@ fraud-detection-system/
 ├── Dockerfile
 ├── sample_transactions.csv
 └── README.md
-
+```
 ------------------------------------------------------------
 INSTALLATION
 ------------------------------------------------------------
@@ -102,7 +101,7 @@ INSTALLATION
 ------------------------------------------------------------
 API ENDPOINTS
 ------------------------------------------------------------
-
+```
 Transaction Management:
 POST   /api/transactions/upload-transactions
 GET    /api/transactions/batch/{batch_id}
@@ -116,7 +115,7 @@ GET    /health
 Documentation:
 GET    /docs
 GET    /redoc
-
+```
 ------------------------------------------------------------
 CSV FORMAT
 ------------------------------------------------------------
@@ -129,12 +128,12 @@ Required Columns:
 - timestamp
 
 Example:
-
+```
 transaction_id,sender_id,receiver_id,amount,timestamp
 TXN001,ACC001,ACC002,1000.00,2025-02-19T10:00:00
 TXN002,ACC002,ACC003,2500.50,2025-02-19T10:15:00
 TXN003,ACC003,ACC001,1200.00,2025-02-19T10:30:00
-
+```
 Supported Timestamp Formats:
 - ISO 8601
 - ISO Compact (Z)
@@ -217,4 +216,3 @@ LICENSE
 ------------------------------------------------------------
 
 Proprietary – All rights reserved.
-"""
