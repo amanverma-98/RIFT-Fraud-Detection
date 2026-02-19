@@ -6,6 +6,7 @@ from app.utils.exceptions import FraudDetectionException
 from app.services.csv_processor import CSVProcessor
 from app.services.graph_detection import GraphDetectionService
 from app.services.report_generator import ReportGenerator
+from app.services.report_storage import ReportStorage
 from app.models.schemas import CSVUploadResponse, FraudReport
 from app.config import get_settings
 
@@ -16,9 +17,7 @@ router = APIRouter(prefix="/api/fraud", tags=["fraud-detection"])
 csv_processor = CSVProcessor()
 graph_service = GraphDetectionService()
 report_generator = ReportGenerator()
-
-# In-memory storage for reports (replace with database in production)
-reports_cache = {}
+report_storage = ReportStorage()  # Persistent SQLite storage
 
 
 @router.post("/upload", response_model=CSVUploadResponse)
@@ -93,8 +92,8 @@ async def analyze_fraud(filename: str):
             graph_service.graph, fraud_patterns, filename
         )
 
-        # Cache report
-        reports_cache[report["report_id"]] = report
+        # Save report to persistent storage
+        report_storage.save_report(report)
 
         logger.info(f"Fraud analysis complete: {report['report_id']}")
 
@@ -120,11 +119,11 @@ async def get_report(report_id: str):
     Args:
         report_id: ID of the report to retrieve
     """
-    if report_id not in reports_cache:
+    report = report_storage.get_report(report_id)
+    if report is None:
         logger.warning(f"Report not found: {report_id}")
         raise HTTPException(status_code=404, detail="Report not found")
 
-    report = reports_cache[report_id]
     logger.info(f"Retrieved report: {report_id}")
     return report
 
@@ -134,11 +133,11 @@ async def get_report_summary(report_id: str):
     """
     Get a human-readable summary of a fraud report
     """
-    if report_id not in reports_cache:
+    report = report_storage.get_report(report_id)
+    if report is None:
         logger.warning(f"Report not found: {report_id}")
         raise HTTPException(status_code=404, detail="Report not found")
 
-    report = reports_cache[report_id]
     summary = report_generator.format_report_summary(report)
     logger.info(f"Retrieved report summary: {report_id}")
 
@@ -154,12 +153,10 @@ async def list_reports(limit: int = 10):
     """
     List all generated reports
     """
-    reports_list = list(reports_cache.values())
+    reports_list = report_storage.get_all_reports(limit)
     logger.info(f"Listed {len(reports_list)} reports")
 
     return {
-        "total_reports": len(reports_list),
-        "reports": sorted(
-            reports_list, key=lambda x: x["timestamp"], reverse=True
-        )[:limit],
+        "total_reports": report_storage.get_report_count(),
+        "reports": reports_list,
     }
