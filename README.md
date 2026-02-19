@@ -431,3 +431,5 @@ Built for **RIFT 2026 Hackathon** - Graph Theory / Financial Crime Detection Tra
 **Version**: 1.0.0
 **Last Updated**: February 19, 2026
 **Deployment Status**: Ready for Render
+#   r i f t p r o j e c t  
+ 
