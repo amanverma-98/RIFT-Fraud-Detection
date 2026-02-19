@@ -212,7 +212,14 @@ SECURITY NOTES
 - Use secrets management
 
 ------------------------------------------------------------
+AUTHOR
+------------------------------------------------------------
+Aman Verma - Aspiring AI Enginner
+
+------------------------------------------------------------
 LICENSE
 ------------------------------------------------------------
 
 Proprietary – All rights reserved.
+
+Give a star if you liked it
