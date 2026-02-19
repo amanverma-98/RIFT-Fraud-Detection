@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from datetime import datetime
 import os
 import json
+import uuid
 from io import BytesIO
 from fastapi.responses import StreamingResponse
 from app.utils.logger import setup_logger
@@ -130,13 +131,17 @@ async def analyze_fraud(filename: str):
         if not validate_rift_report(rift_report):
             logger.warning("Generated report failed RIFT validation")
 
-        # Also generate standard report for storage
-        standard_report = report_generator.generate_report(
-            graph_service.graph, fraud_patterns, filename
-        )
+        # Generate report ID and add metadata to RIFT report
+        report_id = f"REPORT_{str(uuid.uuid4())[:8].upper()}"
+        rift_report_with_metadata = {
+            "report_id": report_id,
+            "timestamp": datetime.utcnow().isoformat(),
+            "filename": filename,
+            **rift_report  # Merge RIFT report fields
+        }
 
-        # Store standard report
-        report_storage.save_report(standard_report)
+        # Store RIFT-compliant report (not the old standard format)
+        report_storage.save_report(rift_report_with_metadata)
 
         logger.info(
             f"Fraud analysis complete: {rift_report['summary']['suspicious_accounts_flagged']} "
@@ -145,10 +150,10 @@ async def analyze_fraud(filename: str):
 
         return {
             "status": "success",
-            "report_id": standard_report.get("report_id", "REPORT_001"),
+            "report_id": report_id,
             "suspicious_accounts_flagged": rift_report['summary']['suspicious_accounts_flagged'],
             "fraud_rings_detected": rift_report['summary']['fraud_rings_detected'],
-            "download_json_url": f"/api/fraud/report/{standard_report.get('report_id', 'REPORT_001')}/download-json"
+            "download_json_url": f"/api/fraud/report/{report_id}/download-json"
         }
 
     except FraudDetectionException as e:
@@ -179,21 +184,29 @@ async def get_report(report_id: str):
 @router.get("/report/{report_id}/summary")
 async def get_report_summary(report_id: str):
     """
-    Get a human-readable summary of a fraud report
+    Get summary of a fraud report
     """
-    report = report_storage.get_report(report_id)
-    if report is None:
-        logger.warning(f"Report not found: {report_id}")
-        raise HTTPException(status_code=404, detail="Report not found")
+    try:
+        report = report_storage.get_report(report_id)
+        if report is None:
+            logger.warning(f"Report not found: {report_id}")
+            raise HTTPException(status_code=404, detail="Report not found")
 
-    summary = report_generator.format_report_summary(report)
-    logger.info(f"Retrieved report summary: {report_id}")
+        # Return the summary field from RIFT report
+        summary = report.get("summary", {})
 
-    return {
-        "report_id": report_id,
-        "summary": summary,
-        "timestamp": datetime.utcnow().isoformat(),
-    }
+        logger.info(f"Retrieved report summary: {report_id}")
+
+        return {
+            "report_id": report_id,
+            "summary": summary,
+            "timestamp": report.get("timestamp", datetime.utcnow().isoformat()),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving report summary: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve report summary")
 
 
 @router.get("/report/{report_id}/download-json")
@@ -215,8 +228,15 @@ async def download_report_json(report_id: str):
 
     logger.info(f"Downloading report as JSON: {report_id}")
 
+    # Extract only RIFT-compliant fields
+    rift_report = {
+        "suspicious_accounts": report.get("suspicious_accounts", []),
+        "fraud_rings": report.get("fraud_rings", []),
+        "summary": report.get("summary", {})
+    }
+
     # Convert to JSON bytes
-    json_str = json.dumps(report, indent=2)
+    json_str = json.dumps(rift_report, indent=2)
     json_bytes = json_str.encode('utf-8')
 
     return StreamingResponse(
@@ -231,12 +251,45 @@ async def download_report_json(report_id: str):
 @router.get("/reports")
 async def list_reports(limit: int = 10):
     """
-    List all generated reports
+    List all generated reports with RIFT-compliant format
     """
-    reports_list = report_storage.get_all_reports(limit)
-    logger.info(f"Listed {len(reports_list)} reports")
+    try:
+        reports_list = report_storage.get_all_reports(limit)
+        logger.info(f"Retrieved {len(reports_list)} reports from storage")
 
-    return {
-        "total_reports": report_storage.get_report_count(),
-        "reports": reports_list,
-    }
+        # Extract only RIFT-compliant fields from each report
+        rift_reports = []
+        for report in reports_list:
+            try:
+                # Safely extract fields with fallbacks
+                rift_report = {
+                    "report_id": report.get("report_id", "UNKNOWN"),
+                    "timestamp": report.get("timestamp", ""),
+                    "filename": report.get("filename", "unknown"),
+                    "suspicious_accounts": report.get("suspicious_accounts", []),
+                    "fraud_rings": report.get("fraud_rings", []),
+                    "summary": report.get("summary", {
+                        "total_accounts_analyzed": 0,
+                        "suspicious_accounts_flagged": 0,
+                        "fraud_rings_detected": 0,
+                        "processing_time_seconds": 0.0
+                    })
+                }
+                rift_reports.append(rift_report)
+            except Exception as report_err:
+                logger.warning(f"Skipping malformed report: {str(report_err)}")
+                continue
+
+        logger.info(f"Listed {len(rift_reports)} valid reports")
+
+        return {
+            "total_reports": len(rift_reports),
+            "reports": rift_reports,
+        }
+    except Exception as e:
+        logger.error(f"Error listing reports: {str(e)}", exc_info=True)
+        # Return empty list instead of error
+        return {
+            "total_reports": 0,
+            "reports": [],
+        }

@@ -136,12 +136,32 @@ def generate_rift_report(
         suspicious_accounts_list = []
         account_suspicion_map = {}
 
+        # If suspicious_scores provided, use those; otherwise calculate from patterns
         if suspicious_scores:
             for score_dict in suspicious_scores:
                 account_id = score_dict.get('account_id')
                 if account_id:
                     suspicion_score = float(score_dict.get('suspicion_score', 0))
                     account_suspicion_map[account_id] = suspicion_score
+        else:
+            # Calculate suspicion scores based on detected patterns
+            # Weights per RIFT specification
+            pattern_weights = {
+                "cycle_length_3": 40,
+                "cycle_length_4": 40,
+                "cycle_length_5": 40,
+                "fan_in_pattern": 30,
+                "fan_out_pattern": 30,
+                "shell_chain_pattern": 20,
+                "high_velocity": 10
+            }
+
+            for account, patterns in account_patterns.items():
+                raw_score = sum(pattern_weights.get(p, 0) for p in patterns)
+                # Normalize to 0-100: min(100, (raw/130)*100)
+                # 130 is max possible score (40+30+30+20+10)
+                normalized_score = min(100.0, (raw_score / 130.0) * 100.0)
+                account_suspicion_map[account] = round(normalized_score, 1)
 
         # Create suspicious accounts with EXACT RIFT format
         for account in all_accounts:
