@@ -80,12 +80,12 @@ def generate_rift_report(
 
         ring_counter = 1
 
-        # Process cycles (Pattern: cycle_length_X)
+        # Process cycles (Pattern: cycle)
         if cycles:
             logger.info(f"Processing {len(cycles)} cycles")
             for cycle in cycles:
                 if len(cycle) >= 3 and len(cycle) <= 5:
-                    pattern_name = f"cycle_length_{len(cycle)}"
+                    pattern_name = "cycle"  # Just "cycle", not "cycle_length_X"
                     ring_id = f"RING_{ring_counter:03d}"
                     ring_counter += 1
 
@@ -102,23 +102,91 @@ def generate_rift_report(
         if fan_patterns:
             logger.info(f"Processing fan patterns")
 
-            # Fan-in patterns
-            if "fan_in" in fan_patterns:
-                for account in fan_patterns.get("fan_in", {}).keys():
-                    account_patterns[account].add("fan_in_pattern")
+            # Handle fan_patterns as either List[Dict] or Dict formats
+            if isinstance(fan_patterns, list):
+                # List of pattern dicts with 'pattern_type' and 'account_id' fields
+                fan_in_groups = defaultdict(set)  # aggregator -> set of senders
+                fan_out_groups = defaultdict(set)  # distributor -> set of receivers
 
-            # Fan-out patterns
-            if "fan_out" in fan_patterns:
-                for account in fan_patterns.get("fan_out", {}).keys():
-                    account_patterns[account].add("fan_out_pattern")
+                for pattern in fan_patterns:
+                    account = pattern.get('account_id')
+                    pattern_type = pattern.get('pattern_type')
+                    if account and pattern_type:
+                        if pattern_type == 'fan_in':
+                            account_patterns[account].add("fan_in")
+                            # Find all senders to this account
+                            if transactions_df is not None:
+                                senders = set(
+                                    transactions_df[transactions_df['receiver_id'] == account]['sender_id'].unique()
+                                )
+                                fan_in_groups[account] = senders
+                        elif pattern_type == 'fan_out':
+                            account_patterns[account].add("fan_out")
+                            # Find all receivers from this account
+                            if transactions_df is not None:
+                                receivers = set(
+                                    transactions_df[transactions_df['sender_id'] == account]['receiver_id'].unique()
+                                )
+                                fan_out_groups[account] = receivers
+
+                # Create rings for fan_in patterns
+                for aggregator, senders in fan_in_groups.items():
+                    if len(senders) >= 10:  # Only create ring if 10+ senders
+                        ring_id = f"RING_{ring_counter:03d}"
+                        ring_counter += 1
+
+                        for sender in senders:
+                            ring_members[ring_id].add(sender)
+                        ring_members[ring_id].add(aggregator)
+
+                        ring_pattern_type[ring_id] = "fan_in"
+                        ring_scores[ring_id] = 50.0  # Fan-in is medium priority
+
+                # Create rings for fan_out patterns
+                for distributor, receivers in fan_out_groups.items():
+                    if len(receivers) >= 10:  # Only create ring if 10+ receivers
+                        ring_id = f"RING_{ring_counter:03d}"
+                        ring_counter += 1
+
+                        for receiver in receivers:
+                            ring_members[ring_id].add(receiver)
+                        ring_members[ring_id].add(distributor)
+
+                        ring_pattern_type[ring_id] = "fan_out"
+                        ring_scores[ring_id] = 50.0  # Fan-out is medium priority
+
+            elif isinstance(fan_patterns, dict):
+                # Dict with 'fan_in' and 'fan_out' keys
+                # Fan-in patterns
+                if "fan_in" in fan_patterns:
+                    for account in fan_patterns.get("fan_in", {}).keys():
+                        account_patterns[account].add("fan_in")
+
+                # Fan-out patterns
+                if "fan_out" in fan_patterns:
+                    for account in fan_patterns.get("fan_out", {}).keys():
+                        account_patterns[account].add("fan_out")
 
         # Process shell chains
         if shell_chains:
             logger.info(f"Processing {len(shell_chains)} shell chains")
-            for chain in shell_chains:
+            for chain_item in shell_chains:
+                # Handle both list and dict formats
+                if isinstance(chain_item, dict):
+                    chain = chain_item.get('chain', [])
+                else:
+                    chain = chain_item
+
                 if len(chain) >= 3:
+                    ring_id = f"RING_{ring_counter:03d}"
+                    ring_counter += 1
+
                     for account in chain:
-                        account_patterns[account].add("shell_chain_pattern")
+                        account_patterns[account].add("shell_company")
+                        ring_members[ring_id].add(account)
+
+                    ring_pattern_type[ring_id] = "shell_company"
+                    ring_scores[ring_id] = 60.0  # Shell companies are medium-high priority
 
         # Add high velocity pattern (high transaction frequency)
         if transactions_df is not None:
@@ -147,12 +215,10 @@ def generate_rift_report(
             # Calculate suspicion scores based on detected patterns
             # Weights per RIFT specification
             pattern_weights = {
-                "cycle_length_3": 40,
-                "cycle_length_4": 40,
-                "cycle_length_5": 40,
-                "fan_in_pattern": 30,
-                "fan_out_pattern": 30,
-                "shell_chain_pattern": 20,
+                "cycle": 40,
+                "fan_in": 30,
+                "fan_out": 30,
+                "shell_company": 20,
                 "high_velocity": 10
             }
 
