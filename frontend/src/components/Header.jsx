@@ -62,9 +62,9 @@ export default function Header({ showUpload }) {
         {step === 'done' && (
           <button
             onClick={() => dispatch(reset())}
-            className="px-3 py-1.5 text-xs font-bold tracking-widest border border-muted/40 text-muted rounded-md hover:bg-emerald-600/10 hover:border-emerald-500/40 transition-all"
+            className="px-3 py-1.5 text-xs font-bold tracking-widest border border-emerald-500/70 text-emerald-400 rounded-md bg-emerald-600/10 hover:bg-emerald-600/20 hover:text-emerald-300 transition-all hover:shadow-lg hover:shadow-emerald-600/20 active:scale-95"
           >
-            ↺ RESET
+            ➕ NEW PROJECT
           </button>
         )}
         <span className={`px-3 py-1 text-xs font-bold tracking-widest border rounded ${cls}`}>
