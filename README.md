@@ -5,8 +5,8 @@
 Built for the RIFT 2026 Hackathon - Graph Theory / Financial Crime Detection Track
 
 ---
-Live demo - https://rift-project-h9z9-git-main-aman-vermas-projects-c6f9d970.vercel.app/
-FastAPI - https://rift-fraud-detection.onrender.com/
+- Live demo - https://rift-project-h9z9-git-main-aman-vermas-projects-c6f9d970.vercel.app/
+- FastAPI - https://rift-fraud-detection.onrender.com/
 
 ## 📋 Table of Contents
 
@@ -422,4 +422,5 @@ For questions or support: [coderaman18@gmail.com]
 Built for **RIFT 2026 Hackathon** - Graph Theory / Financial Crime Detection Track
 
 ---
+
 
