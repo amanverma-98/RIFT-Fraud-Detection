@@ -26,7 +26,7 @@ Built for the RIFT 2026 Hackathon - Graph Theory / Financial Crime Detection Tra
 
 ```bash
 # Clone repository
-git clone [your-repo-url]
+git clone https://github.com/amanverma-98/RIFT-Fraud-Detection
 cd fraud-detection-system
 
 # Create virtual environment
@@ -403,9 +403,9 @@ docker-compose down
 
 ---
 
-## Name -
+## Name :
 
-- Aman Verma - Project Lead & Development
+- Aman Verma - Project Lead & AI Developer
 
 ---
 
@@ -420,5 +420,3 @@ For questions or support: [coderaman18@gmail.com]
 Built for **RIFT 2026 Hackathon** - Graph Theory / Financial Crime Detection Track
 
 ---
- 
- 
