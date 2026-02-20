@@ -403,22 +403,15 @@ docker-compose down
 
 ---
 
-## 👥 Team Members
+## Name -
 
-- [Your Name] - Project Lead & Development
-- [Additional members if any]
-
----
-
-## 📝 License
-
-[Your License Information]
+- Aman Verma - Project Lead & Development
 
 ---
 
 ## 📧 Contact
 
-For questions or support: [your-email]
+For questions or support: [coderaman18@gmail.com]
 
 ---
 
@@ -427,9 +420,5 @@ For questions or support: [your-email]
 Built for **RIFT 2026 Hackathon** - Graph Theory / Financial Crime Detection Track
 
 ---
-
-**Version**: 1.0.0
-**Last Updated**: February 19, 2026
-**Deployment Status**: Ready for Render
-#   r i f t p r o j e c t  
+ 
  
